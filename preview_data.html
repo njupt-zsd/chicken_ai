@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手势数据预览器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+        }
+        .data-row {
+            margin-bottom: 20px;
+        }
+        .label-text {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>手势数据预览器</h1>
+    <input type="file" id="csvFile" accept=".csv">
+    <div id="previewContainer"></div>
+
+    <script>
+        // 加载 CSV 文件
+        document.getElementById('csvFile').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const csvData = e.target.result;
+                parseCSV(csvData);
+            };
+            reader.readAsText(file);
+        });
+
+        // 解析 CSV 数据
+        function parseCSV(csvData) {
+            const lines = csvData.split('\n');
+            const headers = lines[0].split(',');
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const currentLine = lines[i].split(',');
+
+                if (currentLine.length === headers.length) {
+                    const entry = {};
+                    for (let j = 0; j < headers.length; j++) {
+                        entry[headers[j]] = currentLine[j];
+                    }
+                    data.push(entry);
+                }
+            }
+
+            displayData(data);
+        }
+
+        // 显示数据
+        function displayData(data) {
+            const container = document.getElementById('previewContainer');
+            container.innerHTML = ''; // 清空容器
+
+            data.forEach((entry, index) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'data-row';
+
+                // 显示标签
+                const label = entry.label === '0' ? '抓握' : '松手';
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'label-text';
+                labelSpan.textContent = `样本 ${index + 1} - 标签: ${label}`;
+                rowDiv.appendChild(labelSpan);
+
+                // 创建画布
+                const canvas = document.createElement('canvas');
+                canvas.width = 640;
+                canvas.height = 480;
+                rowDiv.appendChild(canvas);
+
+                // 获取 Base64 图像并绘制到画布
+                const ctx = canvas.getContext('2d');
+                const image = new Image();
+                image.src = `data:image/jpeg;base64,${entry.image_base64}`;
+                image.onload = () => {
+                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+                    // 绘制关键点
+                    drawKeypoints(ctx, entry, canvas.width, canvas.height);
+                };
+
+                container.appendChild(rowDiv);
+            });
+        }
+
+        // 绘制关键点
+        function drawKeypoints(ctx, entry, canvasWidth, canvasHeight) {
+            const keypointRegex = /(\w+)_x$/;
+            const keypoints = {};
+
+            // 提取所有关键点坐标
+            for (const [key, value] of Object.entries(entry)) {
+                const match = key.match(keypointRegex);
+                if (match) {
+                    const name = match[1];
+                    const x = parseFloat(entry[`${name}_x`]) * canvasWidth;
+                    const y = parseFloat(entry[`${name}_y`]) * canvasHeight;
+                    const z = parseFloat(entry[`${name}_z`]);
+                    const x_2d = parseFloat(entry[`${name}_2d_x`]) * canvasWidth;
+                    const y_2d = parseFloat(entry[`${name}_2d_y`]) * canvasHeight;
+
+                    keypoints[name] = { x, y, z, x_2d, y_2d };
+                }
+            }
+
+            // 绘制 3D 关键点（蓝色）
+            ctx.fillStyle = 'blue';
+            for (const name in keypoints) {
+                const point = keypoints[name];
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+
+                // 添加标签
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.fillText(name, point.x + 10, point.y + 10);
+            }
+
+            // 绘制 2D 关键点（红色）
+            ctx.fillStyle = 'red';
+            for (const name in keypoints) {
+                const point = keypoints[name];
+                ctx.beginPath();
+                ctx.arc(point.x_2d, point.y_2d, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+    </script>
+</body>
+</html>
