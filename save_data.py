@@ -45,17 +45,16 @@ landmark_names = {
     20: "小指尖"
 }
 
-# 创建 CSV 文件并写入表头（如果不存在）
-if not os.path.exists(CSV_PATH):
-    with open(CSV_PATH, mode='w', newline='', encoding='utf-8') as f:
-        # 构建表头
-        header = ["label", "timestamp", "image_base64"]
-        for idx in range(21):
-            name = landmark_names.get(idx, f"未知_{idx}")
-            header += [f"{name}_x", f"{name}_y", f"{name}_z", f"{name}_2d_x", f"{name}_2d_y"]
+# 创建 CSV 文件并写入表头
+with open(CSV_PATH, mode='w', newline='', encoding='utf-8') as f:
+    # 构建表头
+    header = ["label", "timestamp", "image_base64"]
+    for idx in range(21):
+        name = landmark_names.get(idx, f"未知_{idx}")
+        header += [f"{name}_x", f"{name}_y", f"{name}_z"]
 
-        writer = csv.DictWriter(f, fieldnames=header)
-        writer.writeheader()
+    writer = csv.DictWriter(f, fieldnames=header)
+    writer.writeheader()
 
 # 数据计数器（仅用于界面显示，不写入文件）
 count_grasp = 0
@@ -82,7 +81,8 @@ while cap.isOpened():
     drawn_frame = frame.copy()
 
     if results.multi_hand_landmarks and results.multi_hand_world_landmarks:
-        for hand_landmarks, hand_world_landmarks in zip(results.multi_hand_landmarks, results.multi_hand_world_landmarks):
+        for hand_landmarks, hand_world_landmarks in zip(results.multi_hand_landmarks,
+                                                        results.multi_hand_world_landmarks):
 
             # 绘制 2D 手部骨骼图
             mp_drawing.draw_landmarks(
@@ -98,13 +98,8 @@ while cap.isOpened():
             for lm in hand_world_landmarks.landmark:
                 landmarks_3d.extend([lm.x, lm.y, lm.z])
 
-            # 提取 2D 关键点（图像坐标系）
-            landmarks_2d = []
-            for lm in hand_landmarks.landmark:
-                landmarks_2d.extend([lm.x, lm.y])  # 可选是否包含 z
-
-            # 合并成最终特征向量（共 21×3 + 21×2 = 105维）
-            combined_landmarks = np.array(landmarks_3d + landmarks_2d)  # shape: (105,)
+            # 合并成最终特征向量（共 21×3 = 63维）
+            combined_landmarks = np.array(landmarks_3d)  # shape: (63,)
             current_landmarks = combined_landmarks.copy()
 
     else:
@@ -155,18 +150,12 @@ while cap.isOpened():
                 name = landmark_names.get(i, f"未知_{i}")
 
                 # 3D 坐标
-                x_3d = round(float(current_landmarks[i * 5]), 6)
-                y_3d = round(float(current_landmarks[i * 5 + 1]), 6)
-                z_3d = round(float(current_landmarks[i * 5 + 2]), 6)
+                x_3d = round(float(current_landmarks[i * 3]), 6)
+                y_3d = round(float(current_landmarks[i * 3 + 1]), 6)
+                z_3d = round(float(current_landmarks[i * 3 + 2]), 6)
                 row[f"{name}_x"] = x_3d
                 row[f"{name}_y"] = y_3d
                 row[f"{name}_z"] = z_3d
-
-                # 2D 坐标
-                x_2d = round(float(current_landmarks[i * 5 + 3]), 6)
-                y_2d = round(float(current_landmarks[i * 5 + 4]), 6)
-                row[f"{name}_2d_x"] = x_2d
-                row[f"{name}_2d_y"] = y_2d
 
             # 写入 CSV 文件
             with open(CSV_PATH, mode='a', newline='', encoding='utf-8') as f:

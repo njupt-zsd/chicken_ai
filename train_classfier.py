@@ -15,9 +15,14 @@ def load_data(csv_path):
     # 读取 CSV 文件
     data = pd.read_csv(csv_path)
 
+    # 检查是否有 NaN 值
+    if data.isnull().values.any():
+        print("Warning: Training data contains NaN values.")
+        # 处理 NaN 值
+        data = data.dropna()
+
     # 提取 3D 特征（所有关键点的 x, y, z）
-    features_data = data.filter(regex='_x$|_y$|_z$')
-    features_3d = features_data.filter(regex='^(?!.*_2d)').values
+    features_3d = data.filter(regex='_x$|_y$|_z$').values
     print(features_3d, features_3d.shape)
 
     # 提取标签

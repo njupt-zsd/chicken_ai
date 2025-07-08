@@ -35,6 +35,16 @@ def predict_gesture(features):
     """
     使用模型预测手势
     """
+    # 检查特征是否包含 NaN
+    if np.isnan(features).any():
+        print("Warning: Features contain NaN values. Skipping prediction.")
+        return None
+
+    # 检查特征维度
+    if features.shape[1] != 63:
+        print(f"Warning: Incorrect feature dimension ({features.shape[1]} instead of 63)")
+        return None
+
     # 标准化特征
     features_scaled = scaler.transform(features)
     # 预测
@@ -65,6 +75,11 @@ while cap.isOpened():
 
             # 提取 3D 特征
             features = extract_3d_features(hand_world_landmarks)
+
+            # 验证特征维度
+            if features.shape[1] != 63:
+                print(f"Warning: Incorrect feature dimension ({features.shape[1]} instead of 63)")
+                continue
 
             # 预测手势
             gesture = predict_gesture(features)
